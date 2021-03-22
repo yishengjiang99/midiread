@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mocha</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./test/mocha.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js"></script>
+  </head>
+  <body>
+    <pre></pre>
+
+    <div id="mocha"><canvas width="1024" height="1024"></canvas></div>
+    <script src="./test/mocha.js"></script>
+    <script>
+      mocha.setup("bdd");
+    </script>
+
+    <script type="module">
+      import { bufferReader } from "./dist/bufread.js";
+      import { cscale } from "./test/cscale.js";
+      import { readMidi } from "./dist/index.js";
+
+      const expect = chai.expect;
+
+      describe("mocha", () => {
+        it("it tests stuff", () => {
+          chai.expect(true);
+        });
+      });
+      describe("readMidi", () => {
+        it("reads midi", () => {
+          const r = bufferReader(cscale);
+          expect(String.fromCharCode(r.fgetc())).to.eq("M");
+          expect(r.offset).to.eq(1);
+        });
+      });
+      describe("readmidi", () => {
+        it("it reads midi (some of it)", async () => {
+          const obb = document.body.querySelector("pre");
+          function cb(string, obj) {
+            obb.innerHTML += "\n" + string;
+            if (obj) obb.innerHTML += JSON.stringify(obj);
+          }
+          const res = await fetch("./c.mid");
+          const ab = await res.arrayBuffer();
+          const { readAt, tick } = readMidi(
+            new Uint8Array(ab),
+            (string, obj) => {
+              obb.innerHTML += "\n" + string;
+              if (obj) obb.innerHTML += JSON.stringify(obj);
+            }
+          );
+          readAt(0);
+          expect(obb).to.exist;
+          expect(obb.innerHTML).to.include("noteOn");
+          readAt(2);
+          expect(obb.innerHTML).to.include("noteOff");
+          readAt(4);
+          expect(obb.innerHTML).to.include("noteOff");
+        });
+      });
+      mocha.run();
+    </script>
+    <script type="module">
+      import { readMidi } from "./dist/index.js";
+
+      (async function r() {
+        fetch(
+          "https://grep32bit.blob.core.windows.net/midi/Beethoven-Symphony5-1.mid"
+        )
+          .then((res) => res.arrayBuffer())
+          .then((ab) => {
+            const canvas = document.querySelector("canvas");
+            const ctgx = canvas.getContext("2d");
+
+            canvas.style.width = 1024;
+            canvas.style.height = 1024;
+            canvas.setAttribute("width", 1024);
+            canvas.setAttribute("height", 1024);
+            // canvas.width = 1024;
+            // canvas.height = 560;
+            const cells = 16 * 88;
+            const gridw = 1024 / 88;
+            const gridh = 1024 / 16;
+            ctgx.lineWidth = 1;
+            ctgx.strokeStyle = "grey";
+            ctgx.clearRect(0, 0, 1024, 1024);
+            ctgx.fillRect(0, 0, 1024, 1024);
+            const obb = document.querySelector("pre");
+            const container = document.querySelector("main");
+            const { tracks, readAt, tick } = readMidi(
+              new Uint8Array(ab),
+              (cmd, obj) => {
+                //let channel, note, vel, prog;
+                switch (cmd) {
+                  case "noteOn":
+                    ctgx.beginPath();
+                    ctgx.fillStyle = "red";
+                    ctgx.rect(
+                      obj.note * gridw,
+                      obj.channel * gridh,
+                      gridw,
+                      gridh
+                    );
+                    ctgx.stroke();
+                    ctgx.fill();
+
+                    break;
+                  case "noteOff":
+                    ctgx.clearRect(
+                      obj.note * gridw,
+                      obj.channel * gridh,
+                      gridw,
+                      gridh
+                    );
+                    ctgx.fillStyle = "black";
+                    ctgx.rect(
+                      obj.note * gridw,
+                      obj.channel * gridh,
+                      gridw,
+                      gridh
+                    );
+                    ctgx.stroke();
+                    ctgx.fill();
+
+                    break;
+                  case "cc":
+                    // { prog, cc, channel } = obj;
+                    break;
+                }
+                if (obj) obb.innerHTML = JSON.stringify(obj);
+              }
+            );
+
+            setInterval(tick, 120);
+          })
+          .catch((e) => alert(e.message));
+      })();
+    </script>
+  </body>
+</html>

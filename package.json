@@ -1,0 +1,23 @@
+{
+  "name": "midiread",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "open index.html"
+  },
+  "types": "index.d.ts",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "directories": {
+    "example": "example"
+  },
+  "description": "",
+  "dependencies": {
+  },
+  "devDependencies": {    
+    "ts-node": "^9.1.1",
+
+    "typescript": "^4.2.3"
+  }
+}
