@@ -1,8 +1,5 @@
 import { bufferReader } from "./bufread.js";
-export function readMidi(
-  buffer: Uint8Array,
-  onMsg: (str: string, obj?: any) => void
-) {
+export function readMidi(buffer: Uint8Array, callback) {
   const reader = bufferReader(buffer);
   const {
     fgetc,
@@ -19,8 +16,10 @@ export function readMidi(
   const format = read16();
   const ntracks = read16();
   const division = read16();
-  onMsg("header", { chunkType, headerLength, format, ntracks, division });
-  let g_time = -1000;
+  console.log(division);
+  let cb = callback || console.log;
+  cb("header", { chunkType, headerLength, format, ntracks, division }, 0);
+  let g_time = 0;
   type Track = {
     endofTrack: number;
     offset: number;
@@ -30,7 +29,9 @@ export function readMidi(
 
   const tracks: Track[] = [];
   const limit = buffer.byteLength;
-  const tempos: { tempo: number }[] = [];
+  let tempo;
+  let microsecPerBeat = 50000;
+  let bpm;
   const metainfo: any[] = [];
   const timesigs: {
     qnpm: number | false;
@@ -56,7 +57,10 @@ export function readMidi(
       }
       track.offset = reader.offset;
     }
-    function readMessage(track: { program: number | boolean }) {
+    function readMessage(track: { program: number | boolean; time: number }) {
+      function onMsg(cmd: string, obj: any = "") {
+        cb(cmd, obj ?? {}, track.time);
+      }
       const msg = fgetc();
       if (!msg) return false;
       let meta;
@@ -85,10 +89,10 @@ export function readMidi(
                 cmd = cmd || "queue ptr";
                 onMsg(cmd, fgets(len));
                 break;
-
               case 0x51:
-                const tempo = read24();
-                onMsg("tempo", tempo);
+                microsecPerBeat = read24();
+
+                onMsg("tempo", { tempo: (60 / microsecPerBeat) * 1e6 });
                 break;
               case 0x54:
                 const [framerateAndhour, min, sec, frame, subframe] = [
@@ -101,7 +105,6 @@ export function readMidi(
                 const framerate = [24, 25, 29, 30][framerateAndhour & 0x60];
                 const hour = framerate & 0x1f;
                 onMsg("SMPTE", {
-                  framerate,
                   hour,
                   min,
                   sec,
@@ -110,7 +113,7 @@ export function readMidi(
                 });
                 break;
               case 0x58:
-                cmd = "timesig";
+                cmd = "timeSig";
 
                 onMsg(cmd, {
                   qnpm: fgetc(),
@@ -172,16 +175,16 @@ export function readMidi(
         }
       } else {
         const channel = msg & 0x0f;
-        const cmd = msg >> 4;
+        const cmd = msg & 0xf0;
         switch (cmd) {
-          case 0x08:
+          case 0x80:
             onMsg("noteOff", {
               channel: channel,
               note: fgetc(),
               vel: fgetc(),
             });
             break;
-          case 0x09:
+          case 0x90:
             onMsg("noteOn", {
               channel: channel,
               note: fgetc(),
@@ -189,27 +192,27 @@ export function readMidi(
             });
             break;
 
-          case 0x0a:
+          case 0xa0:
             onMsg("polyaftertouch", {
               channel: channel,
               note: fgetc(),
               pressure: fgetc(),
             });
             break;
-          case 0x0b:
+          case 0xb0:
             onMsg("channelMode", {
               channel: channel,
               cc: fgetc(),
               val: fgetc(),
             });
             break;
-          case 0x0c:
+          case 0xc0:
             onMsg("Program", {
               channel: channel,
               program: fgetc(),
             });
             break;
-          case 0x0e:
+          case 0xe0:
             onMsg("pitchWhell", {
               channel: channel,
               note: fgetc(),
@@ -222,15 +225,38 @@ export function readMidi(
       }
     }
   }
-
+  function tick() {
+    g_time = g_time + division / 2;
+    readAt(g_time);
+  }
   return {
     tracks,
     readAt,
-    readAll: () => readAt(Infinity),
-    tick: () => {
-      g_time = g_time + 155;
-      readAt(g_time);
+    get time() {
+      return g_time / this.ticksPerSecond;
     },
+    get ticksPer4n() {
+      return this.division;
+    },
+    get tempo() {
+      return (60 * 1000) / microsecPerBeat;
+    },
+    get milisecondPerEigthNote() {
+      return microsecPerBeat / 1000 / 2; /* qn per minute */
+    },
+    get ticksPerSecond() {
+      return microsecPerBeat / division / 1000;
+    },
+    readAll: () => readAt(Infinity),
+    tick,
+    start: () => {
+      function loop() {
+        tick();
+        setTimeout(loop, microsecPerBeat / 1000 / 2);
+      }
+      loop();
+    },
+    addListener: (handler) => (cb = handler),
     pump: (u8a: Uint8Array) => reader.pump(u8a),
   };
 }
