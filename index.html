@@ -24,53 +24,6 @@
     </script>
 
     <script type="module">
-      import { bufferReader } from "./dist/bufread.js";
-      import { cscale } from "./test/cscale.js";
-      import { readMidi } from "./dist/index.js";
-
-      const expect = chai.expect;
-
-      describe("mocha", () => {
-        it("it tests stuff", () => {
-          chai.expect(true);
-        });
-      });
-      describe("readMidi", () => {
-        it("reads midi", () => {
-          const r = bufferReader(cscale);
-          expect(String.fromCharCode(r.fgetc())).to.eq("M");
-          expect(r.offset).to.eq(1);
-        });
-      });
-      describe("readmidi", () => {
-        it("it reads midi (some of it)", async () => {
-          const obb = document.body.querySelector("pre");
-          function cb(string, obj) {
-            obb.innerHTML += "\n" + string;
-            if (obj) obb.innerHTML += JSON.stringify(obj);
-          }
-          const res = await fetch("./c.mid");
-          const ab = await res.arrayBuffer();
-          const { readAt, tick } = readMidi(
-            new Uint8Array(ab),
-            (string, obj) => {
-              obb.innerHTML += "\n" + string;
-              if (obj) obb.innerHTML += JSON.stringify(obj);
-            }
-          );
-          readAt(0);
-          expect(obb).to.exist;
-          expect(obb.innerHTML).to.include("noteOn");
-          readAt(2);
-          expect(obb.innerHTML).to.include("noteOff");
-          readAt(4);
-          expect(obb.innerHTML).to.include("noteOff");
-        });
-      });
-      mocha.run();
-    </script>
-
-    <script type="module">
       import { readMidi } from "./dist/index.js";
 
       (async function canvasR(url) {

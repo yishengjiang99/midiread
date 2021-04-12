@@ -1,4 +1,4 @@
-import { bufferReader } from "./dist/bufread.js";
+import { bufferReader } from "../dist/bufread.js";
 const expect = chai.expect;
 const cscale = new Uint8Array([
   //source:
@@ -636,14 +636,11 @@ const cscale = new Uint8Array([
   0x2f /* 0x270   */,
   0x00 /* 0x278   */,
 ]);
-describe("mocha", () => {
-  it("it tests stuff", () => {
-    chai.expect(true);
-  });
-});
-describe("readMidi", () => {
+
+describe("bufread", () => {
   it("reads midi", () => {
     const r = bufferReader(cscale);
     expect(String.fromCharCode(r.fgetc())).to.eq("M");
+    expect(r.offset).to.eq(1);
   });
 });
