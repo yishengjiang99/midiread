@@ -1,4 +1,4 @@
-import { bufferReader } from "./bufread.js";
+import { bufferReader } from './bufread.js';
 export function readMidi(buffer: Uint8Array, callback) {
   const reader = bufferReader(buffer);
   const {
@@ -11,14 +11,14 @@ export function readMidi(buffer: Uint8Array, callback) {
     readVarLength,
     fgets,
   } = reader;
-  const chunkType = [btoa(), btoa(), btoa(), btoa()].join("");
+  const chunkType = [btoa(), btoa(), btoa(), btoa()].join('');
   const headerLength = read32();
   const format = read16();
   const ntracks = read16();
   const division = read16();
   console.log(division);
   let cb = callback || console.log;
-  cb("header", { chunkType, headerLength, format, ntracks, division }, 0);
+  cb('header', { chunkType, headerLength, format, ntracks, division }, 0);
   let g_time = 0;
   type Track = {
     endofTrack: number;
@@ -41,7 +41,7 @@ export function readMidi(buffer: Uint8Array, callback) {
   }[] = [];
 
   while (reader.offset < limit) {
-    const mhrk = [btoa(), btoa(), btoa(), btoa()].join("");
+    const mhrk = [btoa(), btoa(), btoa(), btoa()].join('');
     let mhrkLength = read32();
     const endofTrack = reader.offset + mhrkLength;
     tracks.push({ endofTrack, offset: reader.offset, time: 0, program: 0 });
@@ -58,7 +58,7 @@ export function readMidi(buffer: Uint8Array, callback) {
       track.offset = reader.offset;
     }
     function readMessage(track: { program: number | boolean; time: number }) {
-      function onMsg(cmd: string, obj: any = "") {
+      function onMsg(cmd: string, obj: any = '') {
         cb(cmd, obj ?? {}, track.time);
       }
       const msg = fgetc();
@@ -71,28 +71,28 @@ export function readMidi(buffer: Uint8Array, callback) {
           case 0xff:
             meta = fgetc();
             var len = readVarLength();
-            let cmd = "";
+            let cmd = '';
             switch (meta) {
               case 0x01:
-                cmd = "Text Event";
+                cmd = 'Text Event';
               case 0x02:
-                cmd = cmd || "Copyright Notice";
+                cmd = cmd || 'Copyright Notice';
               case 0x03:
-                cmd = cmd || "Sequence/Track Name";
+                cmd = cmd || 'Sequence/Track Name';
               case 0x04:
-                cmd = cmd || "Instrument Name";
+                cmd = cmd || 'Instrument Name';
               case 0x05:
-                cmd = cmd || "Lyric";
+                cmd = cmd || 'Lyric';
               case 0x06:
-                cmd = cmd || "Marker";
+                cmd = cmd || 'Marker';
               case 0x07:
-                cmd = cmd || "queue ptr";
+                cmd = cmd || 'queue ptr';
                 onMsg(cmd, fgets(len));
                 break;
               case 0x51:
                 microsecPerBeat = read24();
 
-                onMsg("tempo", { tempo: (60 / microsecPerBeat) * 1e6 });
+                onMsg('tempo', { tempo: (60 / microsecPerBeat) * 1e6 });
                 break;
               case 0x54:
                 const [framerateAndhour, min, sec, frame, subframe] = [
@@ -104,7 +104,7 @@ export function readMidi(buffer: Uint8Array, callback) {
                 ];
                 const framerate = [24, 25, 29, 30][framerateAndhour & 0x60];
                 const hour = framerate & 0x1f;
-                onMsg("SMPTE", {
+                onMsg('SMPTE', {
                   hour,
                   min,
                   sec,
@@ -113,7 +113,7 @@ export function readMidi(buffer: Uint8Array, callback) {
                 });
                 break;
               case 0x58:
-                cmd = "timeSig";
+                cmd = 'timeSig';
 
                 onMsg(cmd, {
                   qnpm: fgetc(),
@@ -130,47 +130,47 @@ export function readMidi(buffer: Uint8Array, callback) {
                 info.push({
                   majminor: fgetc() & 0x7f,
                 });
-                cmd = "note pitch change";
+                cmd = 'note pitch change';
                 break;
               case 0x2f:
                 //END OF TRACK;
-                onMsg("end of track");
+                onMsg('end of track');
                 break;
               default:
-                cmd = "unkown " + meta;
-                info.push({ "type:": meta, info: fgets(len) });
+                cmd = 'unkown ' + meta;
+                info.push({ 'type:': meta, info: fgets(len) });
                 break;
             }
             // console.log("meta ", msg, cmd, info);
             break;
           case 0xf2:
-            onMsg("Song Position Pointer", read16());
+            onMsg('Song Position Pointer', read16());
           case 0xf1:
-            onMsg("smpte:", [fgetc(), fgetc(), fgetc(), fgetc()]);
+            onMsg('smpte:', [fgetc(), fgetc(), fgetc(), fgetc()]);
             break;
           case 0xf3:
           case 0xf4:
-            onMsg("icd,", fgetc());
+            onMsg('icd,', fgetc());
             break;
           case 0xf6:
-            console.log("list tunes");
+            console.log('list tunes');
             break;
           case 0xf7:
           case 0xf8:
-            onMsg("timing");
+            onMsg('timing');
             break;
           case 0xfa:
-            onMsg("start");
+            onMsg('start');
             break;
           case 0xfb:
-            onMsg("Continue");
+            onMsg('Continue');
             break;
           case 0xfc:
-            onMsg("stop");
+            onMsg('stop');
             break;
           default:
             console.log(msg);
-            console.log("wtf");
+            console.log('wtf');
             break;
         }
       } else {
@@ -178,14 +178,14 @@ export function readMidi(buffer: Uint8Array, callback) {
         const cmd = msg & 0xf0;
         switch (cmd) {
           case 0x80:
-            onMsg("noteOff", {
+            onMsg('noteOff', {
               channel: channel,
               note: fgetc(),
               vel: fgetc(),
             });
             break;
           case 0x90:
-            onMsg("noteOn", {
+            onMsg('noteOn', {
               channel: channel,
               note: fgetc(),
               vel: fgetc(),
@@ -193,27 +193,27 @@ export function readMidi(buffer: Uint8Array, callback) {
             break;
 
           case 0xa0:
-            onMsg("polyaftertouch", {
+            onMsg('polyaftertouch', {
               channel: channel,
               note: fgetc(),
               pressure: fgetc(),
             });
             break;
           case 0xb0:
-            onMsg("channelMode", {
+            onMsg('channelMode', {
               channel: channel,
               cc: fgetc(),
               val: fgetc(),
             });
             break;
           case 0xc0:
-            onMsg("Program", {
+            onMsg('Program', {
               channel: channel,
               program: fgetc(),
             });
             break;
           case 0xe0:
-            onMsg("pitchWhell", {
+            onMsg('pitchWhell', {
               channel: channel,
               note: fgetc(),
               pressure: fgetc(),
@@ -226,14 +226,20 @@ export function readMidi(buffer: Uint8Array, callback) {
     }
   }
   function tick() {
-    g_time = g_time + division / 2;
+    g_time += (division / microsecPerBeat) * 1e6;
+
     readAt(g_time);
   }
+  let stopped = false;
+
   return {
+    format,
+    ntracks,
+    division,
     tracks,
     readAt,
     get time() {
-      return g_time / this.ticksPerSecond;
+      return (g_time / (division / microsecPerBeat)) * 1e6;
     },
     get ticksPer4n() {
       return this.division;
@@ -245,17 +251,20 @@ export function readMidi(buffer: Uint8Array, callback) {
       return microsecPerBeat / 1000 / 2; /* qn per minute */
     },
     get ticksPerSecond() {
-      return microsecPerBeat / division / 1000;
+      return (division / microsecPerBeat) * 1e6;
     },
     readAll: () => readAt(Infinity),
     tick,
     start: () => {
+      stopped = false;
       function loop() {
+        if (stopped) return;
         tick();
         setTimeout(loop, microsecPerBeat / 1000 / 2);
       }
       loop();
     },
+    stop: () => (stopped = true),
     addListener: (handler) => (cb = handler),
     pump: (u8a: Uint8Array) => reader.pump(u8a),
   };
