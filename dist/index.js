@@ -1,20 +1,25 @@
-import { bufferReader } from './bufread.js';
-export function readMidi(buffer, callback) {
-    const reader = bufferReader(buffer);
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.readMidi = void 0;
+const bufread_js_1 = require("./bufread.js");
+function readMidi(buffer, callb) {
+    const reader = bufread_js_1.bufferReader(buffer);
     const { fgetc, offset, btoa, read32, read16, read24, readVarLength, fgets, } = reader;
     const chunkType = [btoa(), btoa(), btoa(), btoa()].join('');
     const headerLength = read32();
     const format = read16();
     const ntracks = read16();
     const division = read16();
+    let cb = callb ||
+        function (cmd, obj, time) {
+            console.log(cmd, obj, time);
+        };
     console.log(division);
-    let cb = callback || console.log;
-    cb('header', { chunkType, headerLength, format, ntracks, division }, 0);
     let g_time = 0;
     const tracks = [];
     const limit = buffer.byteLength;
     let tempo;
-    let microsecPerBeat = 50000;
+    let microsecPerBeat = 500000;
     let bpm;
     const metainfo = [];
     const timesigs = [];
@@ -25,12 +30,26 @@ export function readMidi(buffer, callback) {
         tracks.push({ endofTrack, offset: reader.offset, time: 0, program: 0 });
         reader.offset = endofTrack;
     }
+    function readVarLengthWithRollback(_reader) {
+        const offsettt = _reader.offset;
+        return {
+            value: _reader.readVarLength(),
+            rollback: () => (_reader.offset = offsettt),
+        };
+    }
     function readAt(g_time) {
         for (const track of tracks) {
             reader.offset = track.offset;
-            while (track.time <= g_time && reader.offset < track.endofTrack) {
-                track.time += readVarLength();
-                readMessage(track);
+            while (reader.offset < track.endofTrack) {
+                const { value, rollback } = readVarLengthWithRollback(reader);
+                if (track.time + value <= g_time) {
+                    track.time += value;
+                    readMessage(track);
+                }
+                else {
+                    rollback();
+                    break;
+                }
             }
             track.offset = reader.offset;
         }
@@ -200,7 +219,7 @@ export function readMidi(buffer, callback) {
         }
     }
     function tick() {
-        g_time += (division / microsecPerBeat) * 1e6;
+        g_time = g_time + division / 2;
         readAt(g_time);
     }
     let stopped = false;
@@ -210,6 +229,12 @@ export function readMidi(buffer, callback) {
         division,
         tracks,
         readAt,
+        set callback(fn) {
+            cb = fn;
+        },
+        get callback() {
+            return this.cb;
+        },
         get time() {
             return (g_time / (division / microsecPerBeat)) * 1e6;
         },
@@ -217,7 +242,7 @@ export function readMidi(buffer, callback) {
             return this.division;
         },
         get tempo() {
-            return (60 * 1000) / microsecPerBeat;
+            return (60 * 1e6) / microsecPerBeat;
         },
         get milisecondPerEigthNote() {
             return microsecPerBeat / 1000 / 2; /* qn per minute */
@@ -233,12 +258,14 @@ export function readMidi(buffer, callback) {
                 if (stopped)
                     return;
                 tick();
-                setTimeout(loop, microsecPerBeat / 1000 / 2);
+                setTimeout(loop, microsecPerBeat / 1e3 / 2);
             }
             loop();
         },
         stop: () => (stopped = true),
+        meta: { chunkType, headerLength, format, ntracks, division },
         addListener: (handler) => (cb = handler),
         pump: (u8a) => reader.pump(u8a),
     };
 }
+exports.readMidi = readMidi;

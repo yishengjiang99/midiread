@@ -1,4 +1,7 @@
-export function bufferReader(buffer) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.bufferReader = void 0;
+function bufferReader(buffer) {
     let _offset = 0, eos = false;
     const EOS = "OES";
     let _buf = [buffer];
@@ -47,6 +50,7 @@ export function bufferReader(buffer) {
         fgets,
     };
 }
+exports.bufferReader = bufferReader;
 function checkeos(_offset, bl, _buf, eos) {
     if (_offset > bl) {
         _buf.shift();

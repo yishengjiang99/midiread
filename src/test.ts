@@ -51,7 +51,9 @@ ${obj.channel}	${cmd}	${JSON.stringify(obj)}${console.innerHTML.substring(
       102
     )}`;
   }
-  const [start, stop, ff, next] = g.querySelectorAll("button");
+  const [start, stop, ff, next] = Array.from(
+    g.querySelectorAll<HTMLButtonElement>("button")
+  );
   const console = g.querySelector("pre");
   const rxs = g.querySelectorAll(".rx");
   await new Promise((r) => (start.onclick = r));
