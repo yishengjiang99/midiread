@@ -16,7 +16,12 @@ export function bufferReader(buffer: Uint8Array) {
     (fgetc() << 24) | (fgetc() << 16) | (fgetc() << 8) | fgetc();
   const read16 = () => (fgetc() << 8) | fgetc();
   const read24 = () => (fgetc() << 16) | (fgetc() << 8) | fgetc();
-  const fgets = (n: number): string => (n > 1 ? btoa() + fgets(n - 1) : btoa());
+  const fgets = (n: number) => {
+    let s = "";
+    while (n-- > 0) s += btoa();
+    debugger;
+    return s;
+  };
   const fgetnc = (n: number): number[] =>
     n > 1 ? [fgetc(), ...fgetnc(n - 1)] : [fgetc()];
   const readVarLength = () => {
