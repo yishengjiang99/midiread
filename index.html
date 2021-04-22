@@ -18,7 +18,7 @@
     </div>
 
     <script type="module">
-      import r from "./dist/src/index.js";
+      import { readMidi } from "./dist/midiread.js";
 
       (async function canvasR(url) {
         const g = document.querySelector("#mocha");
@@ -29,12 +29,11 @@
         await new Promise((r) => (start.onclick = r));
 
         const r = readMidi(
-          new Uint8Array(await (await fetch(url)).arrayBuffer()),
-          null
+          new Uint8Array(await (await fetch(url)).arrayBuffer())
         );
         const canvasCCs = r.tracks.map((t, ch) => getCanvas(ch, g));
 
-        r.addListener((cmd, obj, time) => {
+        r.callback = (cmd, obj, time) => {
           if (time) rxs[0].innerHTML = time / r.ticksPerSecond;
           switch (cmd) {
             case "header":
@@ -62,7 +61,7 @@
           console.innerHTML = `${obj.channel}	${cmd}
                   ${JSON.stringify(obj)}
                   ${console.innerHTML.substring(0, 102)}`;
-        });
+        };
         r.start();
         g.parentElement.style["margin-top"] = "10px";
         function getCanvas(channel, container) {

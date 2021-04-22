@@ -1,11 +1,9 @@
 {
   "name": "midiread",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "main": "dist/midiread.js",
   "scripts": {
-    "build": "tsc",
-    "test": "mocha",
-    "start": "webpack -w --mode=development"
+    "build": "tsc"
   },
   "types": "dist/midiread.d.ts",
   "keywords": [],
