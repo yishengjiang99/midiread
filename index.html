@@ -4,8 +4,6 @@
     <meta charset="utf-8" />
     <title>Mocha</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="./test/mocha.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js"></script>
   </head>
   <body>
     <div id="mocha">
@@ -18,13 +16,9 @@
       </div>
       <pre style="max-height: 200px; overflow-y: scroll"></pre>
     </div>
-    <script src="./test/mocha.js"></script>
-    <script>
-      mocha.setup("bdd");
-    </script>
 
     <script type="module">
-      import { readMidi } from "./dist/index.js";
+      import r from "./dist/src/index.js";
 
       (async function canvasR(url) {
         const g = document.querySelector("#mocha");

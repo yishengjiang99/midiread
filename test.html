@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mocha</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/mocha/8.3.2/mocha.min.js"
+    integrity="sha512-TfAL33PtGUxii1awTCbr3qbzQT5fYi7ItCGUfzWlnMJ4cK5BA8JNY4gJzEs+tQVbyElVbtcI2Jlaf9EFVMvyeg=="
+    crossorigin="anonymous"
+  ></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/mocha/8.3.2/mocha.css"
+      integrity="sha512-Ytt2foRGKdIInPXwyS3gxRvfTv4n2wi7uB7neCLH1LjExT+PKBeQu6LNVB4QpHaJqx7m2btagBs4kqxYC1QNFg=="
+      crossorigin="anonymous"
+    />
+    <script></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js"></script>
+
+      <script type="module">
+        import { readMidi } from "./dist/midiread.js";
+        mocha.setup("bdd");
+
+        const expect = chai.expect;
+        describe("index.ts", () => {
+          it("opens and reads midifile", async () => {
+            const r = readMidi(
+              new Uint8Array(
+                await (
+                  await fetch("midi/serenade_k361_3rd-mid.mid")
+                ).arrayBuffer()
+              )
+            );
+            expect(r.tracks).to.exist;
+            document.write("<pre>")
+            r.callback=(cmd,obj,time)=>{
+              document.write(time+":"+cmd+":\t");
+              document.write(JSON.stringify(obj,null,'\t')+"\r\n")
+            }
+            r.readAt(500000);
+            console.log(r);
+            document.write("</pre>")
+
+          });
+        });
+  
+        mocha.run();
+      </script></script>
+  </head>
+  <body>
+
+    <pre></pre>
+
+    <div id="mocha"></div>
+  </body>
+</html>

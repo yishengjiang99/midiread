@@ -1,22 +1,18 @@
 {
   "name": "midiread",
   "version": "2.0.0",
-  "main": "dist/index.js",
+  "main": "dist/midiread.js",
   "scripts": {
-    "test": "open index.html"
+    "build": "tsc",
+    "test": "mocha",
+    "start": "webpack -w --mode=development"
   },
-  "types": "index.d.ts",
+  "types": "dist/midiread.d.ts",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "directories": {
     "example": "example"
-  },
-  "description": "",
-  "dependencies": {},
-  "devDependencies": {
-    "ts-node": "^9.1.1",
-    "typescript": "^4.2.3"
   },
   "exports": {
     "require": "./dist/index.js",
