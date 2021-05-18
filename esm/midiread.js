@@ -1,6 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.bufferReader = exports.readAllEvents = exports.readMidi = void 0;
 const ccs = {
     1: "Modulation wheel",
     2: "Breath Control",
@@ -17,7 +14,7 @@ const ccs = {
     94: "detune",
     95: "phaser",
 };
-function readMidi(buffer) {
+export function readMidi(buffer) {
     const reader = bufferReader(buffer);
     const { fgetc, offset, btoa, read32, read16, read24, readVarLength, fgets } = reader;
     const chunkType = [btoa(), btoa(), btoa(), btoa()].join("");
@@ -279,8 +276,7 @@ function readMidi(buffer) {
         pump: (u8a) => reader.pump(u8a),
     };
 }
-exports.readMidi = readMidi;
-async function readAllEvents(ab) {
+export async function readAllEvents(ab) {
     const r = readMidi(ab);
     r.readAt(0);
     let i = 0;
@@ -318,8 +314,7 @@ async function readAllEvents(ab) {
     }
     return { events, programs, notes };
 }
-exports.readAllEvents = readAllEvents;
-function bufferReader(buffer) {
+export function bufferReader(buffer) {
     let _offset = 0, eos = false;
     const EOS = "OES";
     let _buf = [buffer];
@@ -373,7 +368,6 @@ function bufferReader(buffer) {
         fgets,
     };
 }
-exports.bufferReader = bufferReader;
 function checkeos(_offset, bl, _buf, eos) {
     if (_offset > bl) {
         _buf.shift();

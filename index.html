@@ -18,7 +18,7 @@
     </div>
 
     <script type="module">
-      import { readMidi } from "./dist/midiread.js";
+      import { readMidi } from "./esm/midiread.js";
 
       (async function canvasR(url) {
         const g = document.querySelector("#mocha");
@@ -116,7 +116,7 @@
               </tr>
             </table>`;
         }
-      })("https://grep32bit.blob.core.windows.net/midi/all_hell_billie.mid");
+      })("song.mid");
     </script>
   </body>
 </html>

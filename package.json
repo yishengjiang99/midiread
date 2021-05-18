@@ -1,19 +1,21 @@
 {
   "name": "midiread",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "main": "dist/midiread.js",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc; tsc -b tsconfig.cjs.json",
+    "test": "mocha lib/*spec.js"
   },
   "types": "dist/midiread.d.ts",
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "directories": {
-    "example": "example"
-  },
   "exports": {
     "require": "./dist/index.js",
     "import": "./esm/index.js"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.2.18",
+    "@types/mocha": "^8.2.2"
   }
 }
