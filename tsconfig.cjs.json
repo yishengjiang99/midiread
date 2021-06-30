@@ -61,7 +61,7 @@
 
     /* Advanced Options */
     "skipLibCheck": true,
-    "outDir":"dist",
+    "outDir":"./dist",
     "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */
   },
   "include": ["src"]

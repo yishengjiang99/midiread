@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.bufferReader = exports.readAllEvents = exports.readMidi = void 0;
-const ccs = {
+exports.bufferReader = exports.readAllEvents = exports.readMidi = exports.fetchAwaitBuffer = exports.ccs = void 0;
+exports.ccs = {
     1: "Modulation wheel",
     2: "Breath Control",
     7: "Volume",
@@ -17,213 +17,85 @@ const ccs = {
     94: "detune",
     95: "phaser",
 };
-function readMidi(buffer) {
+async function fetchAwaitBuffer(url) {
+    return new Uint8Array(await (await fetch(url)).arrayBuffer());
+}
+exports.fetchAwaitBuffer = fetchAwaitBuffer;
+function readMidi(buffer, cb = function (cmd, obj, time) {
+    console.log(cmd, obj, time);
+}) {
     const reader = bufferReader(buffer);
-    const { fgetc, offset, btoa, read32, read16, read24, readVarLength, fgets } = reader;
+    const { fgetc, offset, btoa, read32, read16, fgetnc, read24, readVarLength, fgets } = reader;
     const chunkType = [btoa(), btoa(), btoa(), btoa()].join("");
     const headerLength = read32();
     const format = read16();
     const ntracks = read16();
     const division = read16();
-    let cb = function (cmd, obj, time) {
-        console.log(cmd, obj, time);
-    };
     let g_time = 0;
     const tracks = [];
-    const limit = buffer.byteLength;
-    let tempo;
     let microsecPerBeat = 500000;
-    while (reader.offset < limit) {
-        fgetc(), fgetc(), fgetc(), fgetc();
-        let mhrkLength = read32();
-        const endofTrack = reader.offset + mhrkLength;
-        tracks.push({ endofTrack, offset: reader.offset, time: 0, program: 0 });
-        reader.offset = endofTrack;
-    }
-    function readVarLengthWithRollback(_reader) {
-        const offsettt = _reader.offset;
-        return {
-            value: _reader.readVarLength(),
-            rollback: () => (_reader.offset = offsettt),
-        };
-    }
-    function readMessage(track, trackId) {
-        function onMsg(cmd, obj) {
+    function readMessage(track, trackId, onMsgoverride = null) {
+        async function onMsg(cmd, obj) {
             obj = { ...obj, trackId }; // trackId;
-            cb(cmd, obj, track.time);
+            if (onMsgoverride)
+                onMsgoverride(cmd, obj, track.time);
+            await cb(cmd, obj, track.time);
         }
-        const msg = fgetc();
-        if (!msg)
+        const timedelta = readVarLength();
+        const event = fgetc();
+        if (!event)
             return false;
         let meta;
         let info = [];
-        if (msg >= 0xf0) {
-            switch (msg) {
-                case 0xff:
-                    meta = fgetc();
-                    var len = readVarLength();
-                    let cmd = "";
-                    switch (meta) {
-                        case 0x01:
-                            cmd = "Text Event";
-                        case 0x02:
-                            cmd = cmd || "Copyright Notice";
-                        case 0x03:
-                            cmd = cmd || "Sequence/Track Name";
-                        case 0x04:
-                            cmd = cmd || "Instrument Name";
-                        case 0x05:
-                            cmd = cmd || "Lyric";
-                        case 0x06:
-                            cmd = cmd || "Marker";
-                        case 0x07:
-                            cmd = cmd || "queue ptr";
-                            onMsg(cmd, { text: fgets(len) });
-                            break;
-                        case 0x51:
-                            microsecPerBeat = read24();
-                            onMsg("tempo", { tempo: (60 / microsecPerBeat) * 1e6 });
-                            break;
-                        case 0x54:
-                            const [framerateAndhour, min, sec, frame, subframe] = [
-                                fgetc(),
-                                fgetc(),
-                                fgetc(),
-                                fgetc(),
-                                fgetc(),
-                            ];
-                            const framerate = [24, 25, 29, 30][framerateAndhour & 0x60];
-                            const hour = framerate & 0x1f;
-                            onMsg("SMPTE", {
-                                hour,
-                                min,
-                                sec,
-                                frame,
-                                subframe,
-                            });
-                            break;
-                        case 0x58:
-                            cmd = "timeSig";
-                            onMsg(cmd, {
-                                qnpm: fgetc(),
-                                beat: fgetc(),
-                                ticks: fgetc(),
-                                measure: fgetc(),
-                            });
-                            break;
-                        case 0x59:
-                            const byte = fgetc();
-                            onMsg("note pitch change", {
-                                major: byte & 0x80,
-                                minor: byte & 0x79,
-                            });
-                            break;
-                        case 0x2f:
-                            //END OF TRACK;
-                            onMsg("event", { info: "end of track" });
-                            break;
-                        default:
-                            cmd = "unkown " + meta;
-                            info.push({ "type:": meta, info: fgets(len) });
-                            break;
-                    }
-                    // console.log("meta ", msg, cmd, info);
+        switch (event) {
+            case 0xff:
+                meta = fgetc();
+                var len = readVarLength();
+                onMsg("meta", { data: fgetnc(len) });
+                break;
+            case 0xf7:
+                onMsg("sysEx", { length: readVarLength(), data: fgets(len) });
+                break;
+            case 0xf0:
+                onMsg("end sysex", { length: readVarLength(), data: fgets(len) });
+                break;
+            default: break;
+        }
+        if (event & 0x80) {
+            track.time += timedelta;
+            switch (event >> 4) {
+                case 0x08:
+                case 0x09:
+                case 0x0a:
+                case 0x0b:
+                case 0x0d:
+                case 0x0e:
+                    onMsg("channel", { data: [event, fgetc(), fgetc()] });
                     break;
-                case 0xf2:
-                    onMsg("Song Position Pointer", { data: read16() });
-                case 0xf1:
-                    onMsg("smpte:", { smpte: [fgetc(), fgetc(), fgetc(), fgetc()] });
-                    break;
-                case 0xf3:
-                case 0xf4:
-                    fgetc();
-                    break;
-                case 0xf6:
-                    console.log("list tunes");
-                    break;
-                case 0xf7:
-                default:
-                    console.log(msg);
+                case 0x0c:
+                    onMsg("channel", { data: [event, fgetc()] });
                     break;
             }
         }
-        else {
-            const channel = msg & 0x0f;
-            const cmd = msg & 0xf0;
-            let [note, vel] = [fgetc() & 0x7f, fgetc() & 0x7f];
-            switch (cmd) {
-                case 0x90:
-                    if (vel == 0) {
-                        onMsg("noteOff", {
-                            channel: channel,
-                            note: note,
-                            vel: vel,
-                        });
-                    }
-                    else {
-                        onMsg("noteOn", {
-                            channel: channel,
-                            note: note,
-                            vel: vel,
-                        });
-                    }
-                    break;
-                case 0x80:
-                    onMsg("noteOff", {
-                        channel: channel,
-                        note: note,
-                        vel: vel,
-                    });
-                    break;
-                case 0xa0:
-                    onMsg("polyaftertouch", {
-                        channel: channel,
-                        note: note,
-                        pressure: vel,
-                    });
-                    break;
-                case 0xb0:
-                    onMsg("channelMode", {
-                        channel: channel,
-                        cc: note,
-                        val: vel,
-                        velocity: fgetc() & 0x7f,
-                        ccname: ccs[note] ? ccs[vel] : "",
-                    });
-                    break;
-                case 0xc0:
-                    onMsg("Program", {
-                        channel: channel,
-                        program: note,
-                        bankId: trackId == 9 ? 128 : 0,
-                    });
-                    break;
-                case 0xd0:
-                    onMsg("chanpressure", {
-                        channel: channel,
-                        program: note,
-                        bankId: trackId == 9 ? 128 : 0,
-                    });
-                case 0xe0:
-                    const param = fgetc();
-                    onMsg("pitchbend", {
-                        channel: channel,
-                        pitchbend: ((param & 0x7f) << 7) | note,
-                    });
-                    break;
-                default:
-                    break;
-            }
-        }
+    }
+    for (let i = 0; i < ntracks; i++) {
+        console.assert([btoa(), btoa(), btoa(), btoa()].join("") == "MTrk");
+        let mtrkLength = read32();
+        const endofTrack = reader.offset + mtrkLength;
+        tracks.push({ endofTrack, offset: reader.offset, time: 0, program: 0, events: [] });
+        // while(reader.offset<endofTrack){
+        //  readMessage(tracks[i],1,(cmd,obj,time)=>{
+        //    tracks[i].events.push([time,cmd, obj]);
+        //  })
+        // }
+        reader.offset = endofTrack;
     }
     function readAt(g_time) {
         let activeTracks = 0;
         tracks.forEach((track, trackId) => {
             reader.offset = track.offset;
-            while (track.time <= g_time && reader.offset < track.endofTrack) {
+            while (track.time <= g_time) {
                 activeTracks++;
-                const { value, rollback } = readVarLengthWithRollback(reader);
-                track.time += value;
                 readMessage(track, trackId);
             }
             track.offset = reader.offset;
