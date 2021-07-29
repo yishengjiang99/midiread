@@ -1,5 +1,5 @@
 import { readMidi } from "./midiread.js";
-async function schedule(url) {
+async function scheduler(url) {
   const res = await fetch(url);
   const ab = await res.arrayBuffer();
 
@@ -9,10 +9,15 @@ async function schedule(url) {
     tracks.forEach((t) => {
       if (t && t[0] && t[0][0] < time) {
         const eventt = t.shift();
-        postMessage(eventt);
+        const delay = eventt.shift();
+        //@ts-ignore
+        postMessage({ eventt });
       }
-    });
+    }); //@ts-ignore
+
+    postMessage({ t: time });
+
     time++;
   }, division / 255);
 }
-schedule(self.location.hash.split("#")[1]);
+scheduler(self.location.hash.split("#")[1]);

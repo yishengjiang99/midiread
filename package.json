@@ -1,10 +1,10 @@
 {
   "name": "midiread",
-  "version": "2.0.2",
+  "version": "2.0.3s",
   "main": "dist/midiread.js",
   "scripts": {
     "build": "tsc; tsc -b tsconfig.cjs.json",
-    "test": "mocha test/*.js"
+    "test": "echo 'y' | npx serve -p 5333 & chrome-cli open http://localhost:5333/"
   },
   "types": "dist/midiread.d.ts",
   "keywords": [],
