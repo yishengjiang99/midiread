@@ -4,29 +4,18 @@
   "main": "dist/midiread.js",
   "scripts": {
     "build": "tsc; tsc -b tsconfig.cjs.json",
-    "test": "karma start"
+    "test": "mocha test/*.js"
   },
   "types": "dist/midiread.d.ts",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "exports": {
-    "require": "./dist/index.js",
-    "import": "./esm/index.js"
+    "require": "./lib/midiread.js",
+    "import": "./dist/midiread.js"
   },
   "devDependencies": {
     "@types/chai": "^4.2.18",
-    "@types/mocha": "^8.2.2",
-    "chai": "^4.3.4",
-    "karma": "^6.3.3",
-    "karma-chai": "^0.1.0",
-    "karma-chrome-launcher": "^3.1.0",
-    "karma-mocha": "^2.0.1",
-    "mocha": "^9.0.1"
-  },
-  "dependencies": {
-    "@tonejs/midi": "github:tonejs/midi",
-    "@types/webmidi": "^2.0.4",
-    "karma-mocha-reporter": "^2.2.5"
+    "@types/mocha": "^8.2.2"
   }
 }

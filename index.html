@@ -5,20 +5,25 @@
     <title>Mocha</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
-  <body style='display:grid; grid-template-rows: 1fc 1fc 1fc;'>
-    <header>
-      <form id=midioutput>
-      </form>
-    </header>
-    <main style='display:grid; grid-template-columns:1fr 2fr'>
-      <pre></pre>   
-      <aside style='max-height:60vh;overflow-y:hidden'></aside>
-   </main>
-    <footer>
-      <span id=time><button></button><button></button><button></button><button></button></span>
-    </footer>
-    <script type='module' src=
-      'esm/index.js'></script>
+  <body>
+    <div id="mocha">
+      <div class="rx"></div>
+      <div>
+        <span class="rx"></span>
+        <button>start</button><button>stop</button><button>rw</button>
+        <span class="rx"></span>
+        <span class="rx"></span>
+      </div>
+      <pre style="max-height: 200px; overflow-y: scroll"></pre>
+    </div>
 
+    <script type="module">
+      import {logdiv} from 'https://unpkg.com/mkdiv/mkdiv.js';
+       const { stderr, stdout, infoPanel } = logdiv();document.body.appendChild(infoPanel);
+
+    const div=document.querySelector('pre');
+const w=  new Worker("./dist/scheduler.js#/song.mid",{type:"module"});
+w.onmessage=(e)=>stdout(e.data.join(","));
+    </script>
   </body>
 </html>
