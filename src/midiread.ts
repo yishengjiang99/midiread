@@ -1,22 +1,20 @@
-
 export function readMidi(buffer: Uint8Array) {
   const reader = bufferReader2(buffer);
-  const { fgetc, btoa,read24, readString, read32, readVarLength, read16 } =
-  reader;
+  const { fgetc, btoa, read24, readString, read32, readVarLength, read16 } =
+    reader;
   const chunkType = [btoa(), btoa(), btoa(), btoa()].join("");
   const headerLength = read32();
   const format = read16();
   const ntracks = read16();
   const division = read16();
-  const tracks=[];
+  const tracks = [];
   const limit = buffer.byteLength;
   let lasttype;
-  
-  function readNextEvent() {
-    const { fgetc, read24, readString, read32, readVarLength, read16 } =
-      reader;
+
+  function readNextEvent(): any {
+    const { fgetc, read24, readString, read32, readVarLength, read16 } = reader;
     let type = fgetc();
-    if (type == null) return;
+    if (type == null) return [];
 
     if ((type & 0xf0) == 0xf0) {
       switch (type) {
@@ -24,22 +22,21 @@ export function readMidi(buffer: Uint8Array) {
           const meta = fgetc();
           switch (meta) {
             case 0x51:
-              return ['tempo', read24()];
+              return { tempo: read24() };
             case 0x54:
-              return ['smpte',fgetc(), fgetc(), fgetc(), fgetc(),fgetc()];
+              return { smpte: [fgetc(), fgetc(), fgetc(), fgetc(), fgetc()] };
             case 0x58:
-              return ['timedivision',fgetc(), fgetc(), fgetc(), fgetc()];
+              return { timedivision: [read16(), read16()] };
             case 0x27:
-              return ['eot'] ;
+              return { eot: 1 };
             default:
-             return ["meta", readString(readVarLength())];
+              return { meta: readString(readVarLength()) };
           }
-          break;
         case 0xf0:
         case 0xf7:
-          return ['sysex',readString(readVarLength())];
+          return { sysex: readString(readVarLength()) };
         default:
-          break;
+          return { type, system: readString(readVarLength()) };
       }
     } else {
       let param;
@@ -53,31 +50,35 @@ export function readMidi(buffer: Uint8Array) {
       switch (type >> 4) {
         case 0x0c:
         case 0x0d:
-          return [type, param, 0];
+          return { channel: [type, param, 0] };
         default:
-          return [type, param, fgetc()];
+          return { channel: [type, param, fgetc()] };
       }
     }
   }
   while (reader.offset < limit) {
-    fgetc(), fgetc(), fgetc(), fgetc();   
-    let t=0;
+    fgetc(), fgetc(), fgetc(), fgetc();
+    let t = 0;
 
     let mhrkLength = read32();
     const endofTrack = reader.offset + mhrkLength;
-    const track=[];
-    while(reader.offset<endofTrack){
-      t+=readVarLength();
-      const nextEvent=readNextEvent();
-      if(nextEvent[0]=='eot')break;
-      track.push([ t,...nextEvent]);
+    const track = [];
+    while (reader.offset < endofTrack) {
+      const delay = readVarLength();
+      let nextEvent = readNextEvent();
+      if (!nextEvent) break;
+      if (nextEvent.eot) break;
+      t += delay;
+
+      const evtObj = { t, delay, ...nextEvent };
+
+      track.push(evtObj);
     }
     tracks.push(track);
     reader.offset = endofTrack;
   }
-  return {division,tracks,ntracks};
+  return { division, tracks, ntracks };
 }
-
 
 function bufferReader2(bytes) {
   let _offset = 0;
@@ -125,6 +126,6 @@ function bufferReader2(bytes) {
     read16,
     readVarLength,
     readString,
-btoa
+    btoa,
   };
 }

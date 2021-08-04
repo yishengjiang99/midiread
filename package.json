@@ -1,10 +1,10 @@
 {
   "name": "midiread",
-  "version": "2.0.3s",
+  "version": "2.0.5",
   "main": "dist/midiread.js",
   "scripts": {
     "build": "tsc; tsc -b tsconfig.cjs.json",
-    "test": "echo 'y' | npx serve -p 5333 & chrome-cli open http://localhost:5333/"
+    "test": "ts-node bin/read.js > song.html"
   },
   "types": "dist/midiread.d.ts",
   "keywords": [],
@@ -14,8 +14,12 @@
     "require": "./lib/midiread.js",
     "import": "./dist/midiread.js"
   },
+  "bin": {
+    "midiread": "./bin/read.js"
+  },
   "devDependencies": {
     "@types/chai": "^4.2.18",
-    "@types/mocha": "^8.2.2"
+    "@types/mocha": "^8.2.2",
+    "ts-node": "^10.1.0"
   }
 }
