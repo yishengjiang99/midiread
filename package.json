@@ -1,10 +1,11 @@
 {
   "name": "midiread",
-  "version": "2.0.5",
+  "version": "2.0.14",
   "main": "dist/midiread.js",
   "scripts": {
     "build": "tsc; tsc -b tsconfig.cjs.json",
-    "test": "ts-node bin/read.js > song.html"
+    "test": "ts-node bin/read.js > song.html",
+    "postinstall": "tsc"
   },
   "types": "dist/midiread.d.ts",
   "keywords": [],

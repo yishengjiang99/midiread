@@ -14,7 +14,9 @@ const buf = Fs.readFileSync(filepath);
 const u8 = new Uint8Array(buf);
 
 (async () => {
-  const { run, rwd, pause } = await scheduler(u8, (x) => console.log(x));
+  const {
+    ctrls: { run, rwd, pause },
+  } = await scheduler(u8, (x) => console.log(x));
   run();
 })();
 // import { readFileSync } from "fs";
