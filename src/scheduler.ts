@@ -1,7 +1,7 @@
 import { readMidi } from "./midiread.js";
 
 export async function scheduler(midi_u8, cb) {
-  const { tracks, division } = readMidi(midi_u8);
+  const { tracks, division, presets, ntracks } = readMidi(midi_u8);
   const ticksPerQuarterNote = division;
   let microsecondPerQuarterNote = 500000;
   let timeSignature = 4;
@@ -68,5 +68,11 @@ export async function scheduler(midi_u8, cb) {
     paused = false;
     run();
   }
-  return { pause, rwd, run, resume };
+  return {
+    ctrls: { pause, rwd, run, resume },
+    tracks,
+    ntracks,
+    presets,
+    totalTicks,
+  };
 }
