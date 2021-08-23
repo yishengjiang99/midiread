@@ -62,7 +62,7 @@ export function readMidi(buffer) {
         let t = 0;
         const mhrkLength = read32();
         const endofTrack = reader.offset + mhrkLength;
-        const track = [];
+        const track = [], tempos = [];
         while (reader.offset < endofTrack) {
             const delay = readVarLength();
             const nextEvent = readNextEvent();
@@ -71,12 +71,19 @@ export function readMidi(buffer) {
             if (nextEvent.eot)
                 break;
             t += delay;
-            if (nextEvent.channel && nextEvent.channel[0] >> 4 == 0x0c) {
+            if (nextEvent.meta && nextEvent.meta == 0x54) {
+                tempos.push(nextEvent.payload);
+            }
+            else if (nextEvent.channel && nextEvent.channel[0] >> 4 == 0x0c) {
                 presets.push({
                     t,
                     channel: nextEvent.channel[0] & 0x0f,
                     pid: nextEvent.channel[1] & 0x7f,
                 });
+            }
+            else {
+                const evtObj = { offset: reader.offset, t, delay, ...nextEvent };
+                track.push(evtObj);
             }
             const evtObj = { offset: reader.offset, t, delay, ...nextEvent };
             track.push(evtObj);

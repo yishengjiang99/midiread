@@ -1,19 +1,19 @@
 {
   "name": "midiread",
-  "version": "2.0.14",
-  "main": "dist/midiread.js",
+  "version": "2.0.15",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc; tsc -b tsconfig.cjs.json",
     "test": "ts-node bin/read.js > song.html",
     "postinstall": "tsc"
   },
-  "types": "dist/midiread.d.ts",
+  "types": "dist/index.d.ts",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "exports": {
-    "require": "./lib/midiread.js",
-    "import": "./dist/midiread.js"
+    "require": "./lib/index.js",
+    "import": "./dist/index.js"
   },
   "bin": {
     "midiread": "./bin/read.js"
