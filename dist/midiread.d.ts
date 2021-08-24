@@ -3,4 +3,5 @@ export declare function readMidi(buffer: Uint8Array): {
     tracks: any[];
     ntracks: number;
     presets: any[];
+    tempos: any[];
 };

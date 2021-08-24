@@ -21,8 +21,12 @@ export function readMidi(buffer: Uint8Array) {
         case 0xff: {
           const meta = fgetc();
           const len = readVarLength();
-          const payload = readString(len);
-          return { meta, payload };
+          switch (meta) {
+            case 0x51:
+              return { tempo: read24() };
+            default:
+              return { meta, payload: readString(len) };
+          }
         }
         case 0xf0:
         case 0xf7:
@@ -57,6 +61,7 @@ export function readMidi(buffer: Uint8Array) {
     }
   }
   const presets = [];
+  const tempos = [];
 
   while (reader.offset < limit) {
     fgetc(), fgetc(), fgetc(), fgetc();
@@ -64,8 +69,7 @@ export function readMidi(buffer: Uint8Array) {
 
     const mhrkLength = read32();
     const endofTrack = reader.offset + mhrkLength;
-    const track = [],
-      tempos = [];
+    const track = [];
     while (reader.offset < endofTrack) {
       const delay = readVarLength();
       const nextEvent = readNextEvent();
@@ -73,8 +77,13 @@ export function readMidi(buffer: Uint8Array) {
       if (nextEvent.eot) break;
 
       t += delay;
-      if (nextEvent.meta && nextEvent.meta == 0x54) {
-        tempos.push(nextEvent.payload);
+      if (nextEvent.tempo) {
+        tempos.push({
+          t,
+          delay,
+          track: track.length,
+          ...nextEvent,
+        });
       } else if (nextEvent.channel && nextEvent.channel[0] >> 4 == 0x0c) {
         presets.push({
           t,
@@ -85,14 +94,11 @@ export function readMidi(buffer: Uint8Array) {
         const evtObj = { offset: reader.offset, t, delay, ...nextEvent };
         track.push(evtObj);
       }
-      const evtObj = { offset: reader.offset, t, delay, ...nextEvent };
-
-      track.push(evtObj);
     }
     tracks.push(track);
     reader.offset = endofTrack;
   }
-  return { division, tracks, ntracks, presets };
+  return { division, tracks, ntracks, presets, tempos };
 }
 function bufferReader2(bytes) {
   let _offset = 0;
