@@ -1,4 +1,4 @@
-import { scheduler } from "./node_modules/midiread/dist/scheduler.js";
+import { scheduler } from "https://unpkg.com/midiread@2.0.15/dist/scheduler.js";
 (async () => {
   const url = self.location.hash.split("#")[1];
   const res = await fetch(url);
@@ -7,9 +7,10 @@ import { scheduler } from "./node_modules/midiread/dist/scheduler.js";
     ctrls: { run, rwd, pause },
     totalTicks,
     tracks,
+    presets,
   } = await scheduler(new Uint8Array(ab), postMessage);
   // @ts-ignore
-  postMessage({ totalTicks });
+  postMessage({ totalTicks, tracks, presets });
   onmessage = ({ data: { cmd, amt } }) => {
     switch (cmd) {
       case "start":

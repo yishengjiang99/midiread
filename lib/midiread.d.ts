@@ -1,4 +1,4 @@
-export declare function readMidi(buffer: Uint8Array): {
+export declare function readMidi(buffer: any): {
     division: number;
     tracks: any[];
     ntracks: number;

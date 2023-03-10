@@ -1,14 +1,3 @@
-declare type MIDIEVENT = {
-  eot?: any;
-  tempo?: number;
-  channel?: [number, number, number];
-  port?: any;
-  meta?: number;
-  payload?: Array<number> | string;
-  sysex?: string;
-  ch?: number;
-  cmd?: string;
-};
 export function readMidi(buffer) {
   const reader = bufferReader2(buffer);
   const { fgetc, btoa, read24, readString, read32, readVarLength, read16 } =
@@ -21,58 +10,6 @@ export function readMidi(buffer) {
   const tracks = [];
   const limit = buffer.byteLength;
   let lasttype;
-  function readNextEvent(): MIDIEVENT {
-    const { fgetc, read24, readString, read32, readVarLength, read16 } = reader;
-    let type = fgetc();
-    if (type == null) return {};
-    if ((type & 0xf0) == 0xf0) {
-      switch (type) {
-        case 0xff: {
-          const meta = fgetc();
-          const len = readVarLength();
-          switch (meta) {
-            case 0x21:
-              return { port: fgetc() };
-            case 0x51:
-              return { tempo: read24() };
-            case 0x59:
-              return { meta, payload: [fgetc(), fgetc()] };
-            default:
-              return { meta, payload: readString(len) };
-          }
-        }
-        case 0xf0:
-        case 0xf7:
-          return { sysex: readString(readVarLength()) };
-        default:
-          return { payload: readString(readVarLength()) };
-      }
-    } else {
-      let param;
-      if (0 === (type & 0x80)) {
-        param = type;
-        type = lasttype;
-      } else {
-        param = fgetc();
-        lasttype = type;
-      }
-      switch (type >> 4) {
-        case 0x0c:
-        case 0x0d:
-          return {
-            ch: type & 0x0f,
-            cmd: (type >> 4).toString(16),
-            channel: [type, param, 0],
-          };
-        default:
-          return {
-            ch: type & 0x0f,
-            cmd: (type >> 4).toString(16),
-            channel: [type, param, fgetc()],
-          };
-      }
-    }
-  }
   const presets = [];
   const tempos = [];
   while (reader.offset < limit) {
@@ -100,8 +37,8 @@ export function readMidi(buffer) {
           channel: nextEvent.channel[0] & 0x0f,
           pid: nextEvent.channel[1] & 0x7f,
         });
-        // const evtObj = { offset: reader.offset, t, delay, ...nextEvent };
-        // track.push(evtObj);
+        const evtObj = { offset: reader.offset, t, delay, ...nextEvent };
+        track.push(evtObj);
       } else {
         const evtObj = { offset: reader.offset, t, delay, ...nextEvent };
         track.push(evtObj);
@@ -135,7 +72,7 @@ function bufferReader2(bytes) {
       ? ` !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[~]^_@abcdefghijklmnopqrstuvwxyz`.split(
           ""
         )[code - 32]
-      : code;
+      : "";
   }
   const readString = (n) => {
     let str = "";
@@ -157,4 +94,52 @@ function bufferReader2(bytes) {
     readString,
     btoa,
   };
+}
+function readNextEvent(reader) {
+  const { fgetc, read24, readString, read32, readVarLength, read16 } = reader;
+  let type = fgetc();
+  if (type == null) return [];
+  if ((type & 0xf0) == 0xf0) {
+    switch (type) {
+      case 0xff: {
+        const meta = fgetc();
+        const len = readVarLength();
+        switch (meta) {
+          case 0x51:
+            return { tempo: read24() };
+          default:
+            return { meta, payload: readString(len) };
+        }
+      }
+      case 0xf0:
+      case 0xf7:
+        return { sysex: readString(readVarLength()) };
+      default:
+        return { type, system: readString(readVarLength()) };
+    }
+  } else {
+    let param;
+    if (0 === (type & 0x80)) {
+      param = type;
+      type = lasttype;
+    } else {
+      param = fgetc();
+      lasttype = type;
+    }
+    switch (type >> 4) {
+      case 0x0c:
+      case 0x0d:
+        return {
+          ch: type & 0x0f,
+          cmd: (type >> 4).toString(16),
+          channel: [type, param, 0],
+        };
+      default:
+        return {
+          ch: type & 0x0f,
+          cmd: (type >> 4).toString(16),
+          channel: [type, param, fgetc()],
+        };
+    }
+  }
 }

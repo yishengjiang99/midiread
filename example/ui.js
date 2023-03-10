@@ -1,5 +1,4 @@
 import { logdiv, mkdiv } from "https://unpkg.com/mkdiv/mkdiv.js";
-import { scheduler } from "./node_modules/midiread/dist/scheduler.js";
 
 const { stderr, stdout, infoPanel } = logdiv();
 document.body.appendChild(infoPanel);
@@ -17,7 +16,7 @@ let sliders = Array.from(document.querySelectorAll("input[type='range']"));
 sliders.forEach((s) => s.style.transform);
 // [...labels, ...sliders].forEach((d) => d.remove());
 window.onkeydown = () => {
-  document.querySelector(".cover").style.top = "200vh";
+  document.querySelector(".cover").style.display = "none";
   const ctx = new AudioContext();
 
   const div = document.querySelector("pre");
@@ -31,7 +30,8 @@ window.onkeydown = () => {
     ccs[i * 16 + 11] = 127; //default expression
     ccs[i * 16 + 10] = 64;
   }
-  const programs = [];
+  const programs = new Array(16);
+
   const timeslide = mkdiv("input", {
     type: "range",
     min: -2,
@@ -43,46 +43,56 @@ window.onkeydown = () => {
   gains.forEach((g) => g.connect(ctx.destination));
   const one_over_128x4 = 1 / 128 / 128 / 128 / 128;
   w.onmessage = (e) => {
-    if (e.data.totalTicks) {
+    if (e.data.totalTicks && e.data.presets) {
       stdout(e.data.totalTicks);
       w.postMessage({ cmd: "start" });
+      for (const preset of e.data.presets) {
+        const { pid, channel } = preset;
+        const bkid = channel == 9 ? 128 : 0;
+        programs[channel] = new OscillatorNode(ctx, {
+          type: ["sawtooth", "sine", "square"][pid % 3],
+        });
+        programs[channel].connect(gains[channel]);
+        programs[channel].start();
+      }
     }
     if (e.data.channel) {
-      stdout(e.data.channel.join(","));
       const [a, b, c] = e.data.channel;
       const stat = a >> 4;
       const ch = a & 0x0f;
       const key = b & 0x7f,
         vel = c & 0x7f;
+      stdout([ch, stat, key, vel].join(","));
+
       switch (stat) {
-        case 0xb: //chan set
+        case 0x0b: //chan set
           const idx = Object.keys(ccs[ch]).length;
           sliders[ch * 3 + idx].value = vel;
           labels[ch * 3 + idx].textContent = vel;
           ccs[ch * 128 + key] = vel;
 
           break;
-        case 0xa: //chan set
+        case 0x0a: //chan set
           sliders[ch * 3 + 1].value = vel;
           break;
-        case 0xc: //change porg
+        case 0x0c: //change porg
           labels[ch * 3 + 1].textContent = key;
           if (programs[ch]) programs[ch].disconnect();
           programs[ch] = new OscillatorNode(ctx, {
             frequency: 120,
             type: "sine",
           });
+
           programs[ch].connect(gains[ch]);
           programs[ch].start();
           //  sliders[ch * 2 + 2].value = vel;
 
           break;
         case 8:
-          checkboxes[ch].removeAttribute("checked");
+          checkboxes[ch].setAttribute("checked", false);
           meters[ch * 2].value = "0";
           meters[ch * 2 + 1].value = -vel;
           gains[ch].gain.linearRampToValueAtTime(0, 0.01);
-
           break;
         case 9:
           if (vel == 0) {
@@ -90,32 +100,31 @@ window.onkeydown = () => {
             meters[ch * 2].value = 0;
             gains[ch].gain.linearRampToValueAtTime(0, 0.001);
           } else {
-            checkboxes[ch].setAttribute("checked", true);
-            meters[ch * 2].value = key;
-            meters[ch * 2 + 1].value = vel;
-            programs[ch].frequency.setValueAtTime(
-              Math.pow(2, (key - 69) / 12) * 440,
-              ctx.baseLatency
-            );
-            gains[ch].gain.linearRampToValueAtTime(
-              (vel *
-                vel *
-                ccs[ch * 16 + 7] *
-                ccs[ch * 16 + 11] *
-                one_over_128x4) /
-                4,
-              0.02
-            );
-            gains[ch].gain.setTargetAtTime(
-              (0.5 * ccs[ch * 16 + 7]) / 128 / 2,
-              0.5,
-              0.5
-            );
+            kon(ch, key, vel);
           }
           break;
         default:
           break;
       }
+    }
+
+    function kon(ch, key, vel) {
+      checkboxes[ch].setAttribute("checked", true);
+      meters[ch * 2].value = key;
+      meters[ch * 2 + 1].value = vel;
+      programs[ch].frequency.linearRampToValueAtTime(
+        Math.pow(2, (key - 69) / 12) * 440,
+        0.01
+      );
+      gains[ch].gain.linearRampToValueAtTime(
+        (vel * vel * ccs[ch * 16 + 7] * ccs[ch * 16 + 11] * one_over_128x4) / 4,
+        0.02
+      );
+      gains[ch].gain.setTargetAtTime(
+        (0.5 * ccs[ch * 16 + 7]) / 128 / 2,
+        0.5,
+        0.5
+      );
     }
   };
 };
