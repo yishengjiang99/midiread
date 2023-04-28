@@ -1,141 +1,151 @@
-declare type MIDIEVENT = {
-  eot?: any;
-  tempo?: number;
-  channel?: [number, number, number];
-  port?: any;
-  meta?: number;
-  payload?: Array<number> | string;
-  sysex?: string;
-  ch?: number;
-  cmd?: string;
+
+const DEFAULT_TEMPO = {
+  tempo: 500000,
+  t: 0
 };
-export function readMidi(buffer) {
+enum STATUS_BYTES {
+  SEQ_NUM,
+  TEXT,
+  COPYRIGHT_NOTICE,
+  TRACK_NAME,
+  INSTRUMENT_NAME,
+  LYRICS,
+  MARKERS,
+  CUE_POINT,
+  CHANNEL_PREFIX = 0x20,
+  END_OF_TRACK = 0x2f,
+  SET_TEMPO = 0x51,
+  SMPTE_OFFSET = 0x54,
+  TIME_SIG = 0x58,
+  KEY_SIG = 0X59,
+  META_MSG = 0xff,
+}
+export function readMidi(buffer: Uint8Array): { headerInfo: { chunkType: string; headerLength: number; format: number; }; division: number; tracks: any[]; ntracks: number; presets: any[]; tempos: any[]; time_base: { relative_ts: number; numerator: number; denum: number; ticksPerBeat: number; eigthNotePerBeat: number; }; } {
   const reader = bufferReader2(buffer);
-  const { fgetc, btoa, read24, readString, read32, readVarLength, read16 } =
+  const { fgetc, btoa, read32, readVarLength, read16, read24, readString } =
     reader;
   const chunkType = [btoa(), btoa(), btoa(), btoa()].join("");
   const headerLength = read32();
+
   const format = read16();
   const ntracks = read16();
   const division = read16();
+  const headerInfo = { chunkType, headerLength, format };
   const tracks = [];
+  const DEFAULT_TIMEBASE = {
+    relative_ts: 4, numerator: 4, denum: 4, ticksPerBeat: division, eigthNotePerBeat: 8
+  };
+  const sysex_mask = 0xf0;
+
   const limit = buffer.byteLength;
-  let lasttype;
-  function readNextEvent(): MIDIEVENT {
-    const { fgetc, read24, readString, read32, readVarLength, read16 } = reader;
-    let type = fgetc();
-    if (type == null) return {};
-    if ((type & 0xf0) == 0xf0) {
-      switch (type) {
-        case 0xff: {
-          const meta = fgetc();
-          const len = readVarLength();
-          switch (meta) {
-            case 0x21:
-              return { port: fgetc() };
-            case 0x51:
-              return { tempo: read24() };
-            case 0x59:
-              return { meta, payload: [fgetc(), fgetc()] };
-            default:
-              return { meta, payload: readString(len) };
-          }
-        }
-        case 0xf0:
-        case 0xf7:
-          return { sysex: readString(readVarLength()) };
-        default:
-          return { payload: readString(readVarLength()) };
-      }
-    } else {
-      let param;
-      if (0 === (type & 0x80)) {
-        param = type;
-        type = lasttype;
-      } else {
-        param = fgetc();
-        lasttype = type;
-      }
-      switch (type >> 4) {
-        case 0x0c:
-        case 0x0d:
-          return {
-            ch: type & 0x0f,
-            cmd: (type >> 4).toString(16),
-            channel: [type, param, 0],
-          };
-        default:
-          return {
-            ch: type & 0x0f,
-            cmd: (type >> 4).toString(16),
-            channel: [type, param, fgetc()],
-          };
-      }
-    }
-  }
+  let lasttype: any;
+
   const presets = [];
   const tempos = [];
-  while (reader.offset < limit) {
-    fgetc(), fgetc(), fgetc(), fgetc();
-    let t = 0;
+  let time_base = DEFAULT_TIMEBASE;
+  while (reader.offset < limit)
+  {
+    console.log(fgetc(), fgetc(), fgetc(), fgetc());
+    let t = 0, delay = 0, status_byte;
     const mhrkLength = read32();
     const endofTrack = reader.offset + mhrkLength;
     const track = [];
-    while (reader.offset < limit && reader.offset < endofTrack) {
-      const delay = readVarLength();
-      const nextEvent = readNextEvent();
-      if (!nextEvent) break;
-      if (nextEvent.eot) break;
-      t += delay;
-      if (nextEvent.tempo) {
-        tempos.push({
-          t,
-          delay,
-          track: track.length,
-          ...nextEvent,
-        });
-      } else if (nextEvent.channel && nextEvent.channel[0] >> 4 == 0x0c) {
-        presets.push({
-          t,
-          channel: nextEvent.channel[0] & 0x0f,
-          pid: nextEvent.channel[1] & 0x7f,
-        });
-        // const evtObj = { offset: reader.offset, t, delay, ...nextEvent };
-        // track.push(evtObj);
-      } else {
-        const evtObj = { offset: reader.offset, t, delay, ...nextEvent };
-        track.push(evtObj);
+    console.log(t);
+    const pushEvent = (payload) => track.push({ t, delay, ...payload })
+    while (reader.offset < limit && reader.offset < endofTrack)
+    {
+      delay = readVarLength();
+      status_byte = fgetc();
+
+      if (status_byte & sysex_mask)
+      {
+        switch (status_byte)
+        {
+          case STATUS_BYTES.META_MSG: {
+            const meta = fgetc();
+            const len = readVarLength();
+            switch (meta)
+            {
+              case STATUS_BYTES.SET_TEMPO:
+                const mspqn = read24();
+                pushEvent({ tempo: mspqn });
+                break;
+              case STATUS_BYTES.TIME_SIG:
+                const [numerator, denomP2, ticksPerBeat, eigthNotePerBeat] = [fgetc(), fgetc(), fgetc(), fgetc()];
+                const denum = Math.pow(2, denomP2);
+                const relative_ts = numerator / denum * 4;
+                time_base = { relative_ts, numerator, denum, ticksPerBeat, eigthNotePerBeat };
+                pushEvent({ time_base });
+                break;
+              case STATUS_BYTES.KEY_SIG:
+                pushEvent({ meta, key_sig: [fgetc(), fgetc()] });
+                break;
+              default:
+                pushEvent({ meta, payload: readString(len) });
+                break;
+            }
+          }
+          case 0xf0://sysex start
+          case 0xf7: //sysex end
+            pushEvent({ sysex: readString(readVarLength()) })
+            break;
+          default:
+            pushEvent({ type: status_byte, system: readString(readVarLength()) });
+            break;
+        }
+      } else
+      {
+        let param: any;
+        console.log(status_byte);
+        if (0 === (status_byte & 0x80))
+        {
+          param = status_byte;
+          //status_byte = lasttype;
+        } else
+        {
+          param = fgetc();
+          lasttype = status_byte;
+        }
+        switch (status_byte >> 4)
+        {
+          case 0x0c: //read 2 bytes
+          case 0x0d:
+            pushEvent({ channel: [status_byte, param, 0] });
+            break;
+          default:
+            pushEvent({ channel: [status_byte, param, fgetc()] });
+
+            break;
+        }
       }
+      t += delay;
     }
-    if (track.length) tracks.push(track);
-    reader.offset = endofTrack;
+    for (const e of track) console.log(e)
+    tracks.push(track)
+    console.log(track)
   }
-  return { division, tracks, ntracks, presets, tempos };
+  return { headerInfo, division, tracks, ntracks, presets, tempos, time_base };
 }
+
 function bufferReader2(bytes) {
   let _offset = 0;
   const fgetc = () => bytes[_offset++];
-  const read32 = () =>
-    (fgetc() << 24) | (fgetc() << 16) | (fgetc() << 8) | fgetc();
+  const read32 = () => (fgetc() << 24) | (fgetc() << 16) | (fgetc() << 8) | fgetc();
   const read16 = () => (fgetc() << 8) | fgetc();
   const read24 = () => (fgetc() << 16) | (fgetc() << 8) | fgetc();
   function readVarLength() {
     let v = 0;
     let n = fgetc();
-    v = n & 0x7f;
-    while (n & 0x80) {
+    v = n & 127;
+    while (n & 128)
+    {
       n = fgetc();
-      v = (v << 7) | (n & 0x7f);
+      v = (v << 7) | (n & 127);
     }
     return v;
   }
   function btoa() {
-    const code = fgetc();
-    return code >= 32 && code <= 122
-      ? ` !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[~]^_@abcdefghijklmnopqrstuvwxyz`.split(
-          ""
-        )[code - 32]
-      : code;
+    return String.fromCharCode(fgetc());
   }
   const readString = (n) => {
     let str = "";
@@ -158,3 +168,10 @@ function bufferReader2(bytes) {
     btoa,
   };
 }
+
+// const Fs = require("fs");
+// const Path = require("path");
+
+
+// const a = readMidi(new Uint8Array(Fs.readFileSync("../song.mid")));
+// console.log(a);

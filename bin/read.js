@@ -12,13 +12,5 @@ const filepath =
 
 const buf = Fs.readFileSync(filepath);
 const u8 = new Uint8Array(buf);
-
-(async () => {
-  const {
-    ctrls: { run, rwd, pause },
-  } = await scheduler(u8, (x) => console.log(x));
-  run();
-})();
-// import { readFileSync } from "fs";
-
-// import { readMidi } from "midiread";
+const {tracks} = readMidi(u8);
+console.log(tracks);

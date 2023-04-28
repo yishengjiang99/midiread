@@ -4,8 +4,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc; tsc -b tsconfig.cjs.json",
-    "test": "ts-node bin/read.js > song.html",
-    "postinstall": "tsc"
+    "test": "./bin/read.js"
   },
   "types": "dist/index.d.ts",
   "keywords": [],
